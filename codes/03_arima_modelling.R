@@ -42,10 +42,13 @@ for (i in 1:length(model)) {
 }
 
 #table of results
-spec <- paste0("ARMA",feasible_set$ar, feasible_set$diff, feasible_set$ma)
+spec <- paste0("ARIMA",feasible_set$ar, feasible_set$diff, feasible_set$ma)
 size <- rep(length(petr4_returns), length(model))
 results <- data.frame(spec, log_likelihood = unlist(log_likelihood),
                              qt_parameters = unlist(qt_parameters),
                              size, AIC = unlist(aicarma), 
                              BIC = unlist(bicarma), stringsAsFactors = FALSE)
 print(results)
+
+#chosen arima model
+cond_average <- arima(petr4_returns, order = c(1,0,2), method = "ML")
