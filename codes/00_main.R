@@ -9,3 +9,7 @@ source("codes/02_exploratory_analysis.R")
 
 #ARIMA modelling
 source("codes/03_arima_modelling")
+
+#residuals analysis
+source("codes/04_residuals_analysis.R")
+
