@@ -15,3 +15,9 @@ source("codes/04_residuals_analysis.R")
 
 #GARCH modelling
 source("codes/05_arma_garch_modelling.R")
+
+#ARMA-GARCH residual analysis
+source("codes/06_arma_garch_residual_analysis.R")
+
+#results and predictions
+source("codes/07_results_forecasting.R")
