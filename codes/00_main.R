@@ -13,3 +13,5 @@ source("codes/03_arima_modelling")
 #residuals analysis
 source("codes/04_residuals_analysis.R")
 
+#GARCH modelling
+source("codes/05_arma_garch_modelling.R")
