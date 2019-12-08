@@ -7,7 +7,7 @@ library(stats)
 petr4_returns <- readRDS('data/p4_returns.rds')
 
 #possibilities equal to or smaller than the last lag of ACF/PACF
-feasible_set <- expand.grid(ar = 0:2, diff = 0, ma = 0:2)
+feasible_set <- expand.grid(ar = 0:1, diff = 0, ma = 0:1)
 
 #defining a list for the results
 model <- list()
@@ -51,4 +51,4 @@ results <- data.frame(spec, log_likelihood = unlist(log_likelihood),
 print(results)
 
 #chosen arima model
-cond_average <- arima(petr4_returns, order = c(1,0,2), method = "ML")
+cond_average <- arima(petr4_returns, order = c(0,0,1), method = "ML")
