@@ -17,6 +17,9 @@ colnames(petr4_xts) <- "PETR4"
 #excluding NAs
 petr4_xts <- na.omit(petr4_xts)
 
+#sub-setting to 1996 forward
+petr4_xts <- petr4_xts['1996/']
+
 #calculating log returns
 petr4_returns <- PerformanceAnalytics::Return.calculate(petr4_xts, method = "log")
 petr4_returns <- na.omit(petr4_returns)
