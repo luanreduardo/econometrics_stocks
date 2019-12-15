@@ -36,7 +36,4 @@ lines(mean_arma_garch,col = "green", ylim = ylim, lwd  = 2)
 lines(upper_bound_garch, col = "red", ylim = ylim, lwd = 2)
 lines(lower_bound_garch, col = "red", ylim = ylim, lwd = 2)
 
-
 #accuracy
-accuracy(arima_garch_forecast@forecast$seriesFor, out_of_sample_return)
-
