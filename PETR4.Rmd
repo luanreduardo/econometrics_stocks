@@ -1,0 +1,157 @@
+---
+title: "<center> <h2> <b> PETR4 </b> </h2> </center>"
+author: "<center> Luan Rezende Eduardo </center>"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+urlcolor: blue
+---
+
+```{r include=FALSE}
+
+source('codes/00_main.R')
+
+```
+
+### Introdução 
+
+Visa-se com este trabalho analisar os dados da série de retornos aproximada obtida a partir do log da diferença da série de preços do ativo financeiro PETR4, modelando a sua média condicional através de um modelo ARIMA e sua volatilidade condicional através de um modelo GARCH, de forma a obter predições sobre o seu comportamento fora da amostra.
+
+A sigla PETR4 se refere as ações preferenciais da estatal brasileira Petrobras S.A. e os códigos utilizados podem ser encontradas no link https://github.com/luanreduardo/econometrics_stocks.
+
+### Análise Exploratória
+
+Utiliza-se a base de dados da Economática contendo os preços de fechamento do ativo PETR4 entre os anos de 1996 e 2019, convertidos em uma série temporal do tipo xts. Após a remoção dos dias de não-atividade do mercado tem-se os preços conforme o seguinte gráfico.
+
+<center>
+```{r echo=FALSE}
+
+plot.xts(petr4_xts$PETR4, main = "Preços PETR4")
+
+```
+</center>
+
+Posteriormente, aplica-se a diferença do logaritmo para obter uma série aproximada de retornos para este ativo, com o objetivo de obter uma série estacionária, uma vez que esta é condição necessária para a modelagem. Obtém-se, então, a série abaixo.
+
+<center>
+```{r echo=FALSE}
+
+plot.xts(petr4_returns, main = "Retornos PETR4")
+
+```
+</center>
+
+A partir dos dados aparentemente estacionários da série de retornos, testamos a estacionariedade através de um teste de Dickey-Fuller aumentado, com o número de defasagens sugerido pela função como a raiz cúbica do tamanho da amostra menos 1. Nesse teste a H0 aponta para um passeio aleatório, o presente resultado rejeita H0 indicando a estacionariedade da série.
+
+
+```{r echo=FALSE}
+
+print(unit_root)
+
+```
+
+Por último, calcula-se as funções de autocorrelação e autocorrelação parcial para se verificar se os seus decaimentos indicam a estacionariedade, os resultados abaixo tem rápido decaimento e corroboram o indicado no teste de Dickey-Fuller.
+
+<center>
+```{r echo=FALSE}
+
+plot(acf_petr4_ret, main = "", ylab = "", xlab = "Defasagem")
+title("Função de Autocorrelação (FAC)", adj = 0.5, line = 1)
+plot(pacf_petr4_ret, main = "", ylab = "", xlab = "Defasagem")
+title("Função de Autocorrelação Parcial (FACP)", adj = 0.5, line = 1)
+
+```
+</center>
+
+### Modelagem do ARIMA
+
+Para determinar as ordens máximas $p$, $d$ e $q$ utiliza-se os resultados obtidos na análise exploratória. Como a série dos retornos, utilizada a partir daqui, já apresenta estacionariedade não há necessidade de diferenciação adicional, logo $d=0$. Já os gráficos da FAC e da FACP indicam, respectivamente, um MA(1) e um AR(1) máximos, dessa forma testaremos todos os modelos entre ARIMA(0,0,0) e ARIMA(1,0,1).
+
+```{r echo=FALSE}
+
+print(results)
+
+```
+
+Os resultados indicam que modelo de menor AIC e BIC é o ARIMA(0,0,1), ou MA(1), com três parâmetros. Esse, portanto, é o escolhido para os próximos passos.
+
+```{r echo=FALSE}
+
+print(cond_average)
+
+```
+
+### Análise dos Resíduos para o MA(1)
+
+Aqui é feita uma análise dos resíduos para verificar se existem indicativos de padrões não esperados, uma vez que esses devem se comportar como um ruído branco. Para isso, inicia-se com um teste de Ljung-Box para testar se há indicativo de autocorrelação serial dos resíduos, onde o objetivo é aceitar a hipótese de que os resíduos são i.i.d, H0. Tem-se um p-valor > 0.5 portanto aceita-se H0.
+
+```{r echo=FALSE}
+
+print(box_test_arma)
+
+```
+
+Também utiliza-se a FAC dos resíduos, que também indica a ausência de uma autocorrelação.
+
+
+<center>
+```{r echo=FALSE}
+
+plot(acf_residuals, main = "", ylab = "", xlab = "Defasagem")
+title("FAC dos resíduos do ARMA(0,1)", adj = 0.5, line = 1)
+
+```
+</center>
+
+Já a FAC dos resíduos ao quadrado indica a existência de uma heterocedasticidade condicional nos dados, o que corrobora um fato estilizado do mercado financeiro, que apresenta clusters de volatilidade.
+
+<center>
+```{r echo=FALSE}
+
+plot(acf_residuals_square, main = "", ylab = "", xlab = "Defasagem")
+title("FAC do quadrado dos resíduos do ARMA(0,1)", adj = 0.5, line = 1)
+
+plot(pacf_residuals_square, main = "", ylab = "", xlab = "Defasagem")
+title("FACP do quadrado dos resíduos do ARMA(0,1)", adj = 0.5, line = 1)
+
+```
+</center>
+
+A não realização dos testes de Shapiro e Jarque-Bera para normalidade da distribuição dos resíduos é justificado pela pouca confiabilidade de seus resultados para grande amostras, uma vez que pequenas distorções na distribuição já causam a rejeição da hipótese de normalidade adotada para o modelo.
+
+### Modelo ARMA-GARCH
+
+A presença de heterocedasticidade condicional evidenciada pelas funções de autocorrelação e autorrelação parcial torna necessária a adição de uma ferramenta de modelagem da variância condicional da série temporal. Portanto, busca-se a partir daqui modelar um ARIMA-GARCH para os dados.
+
+As funções de FAC e FACP dos resíduos ao quadrados indicam as ordens $m$ e $n$ máximas do modelo de variância condicional GARCH, uma vez que o FAC não entram na banda de aceitação em defasagens muito altas de cientes de que altas ordens não são usuais, opta-se por $m=5$ e $n=5$ conforme FACP. Os resultados de cada composição de ordens segue abaixo, a distribuição adotada foi a t assimétrica.
+
+<center>
+```{r echo=FALSE}
+
+print(results_arma_garch)
+
+```
+</center>
+
+Os resultados de obtidos indicam menores AIC e BIC no modelo ARMA(0,1)-GARCH(1,1), definindo o modelo utilizado no restante desse trabalho.
+
+```{r echo=FALSE}
+
+print(chosen_arma_garch)
+
+```
+
+### Análise dos Resíduos MA(1)-GARCH(1,1)
+
+
+
+##### **PROCESSO DE ANÁLISE**
+3. Verificar o modelo estimado 
+    * Avaliar o gráfico da função de autocorrelação dos resíduos (padronizados) estimados no passo 2. O ideal é que as defasagens não ultrapassem a linha pontilhada.
+    * Avaliar se as restrições impostas sobre os parâmetros são atendidas
+    * Testar se os resíduos padronizados se comportam conforme a hipótese de distribuição de probabilidade assumida no passo 2 no momento de estimar conjuntamente a média condicional e a variância condicional.
+4. Visualizar os resultados
+    * Gráfico da volatilidade condicional
+
+\break 
