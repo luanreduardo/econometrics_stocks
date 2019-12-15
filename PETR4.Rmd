@@ -208,4 +208,305 @@ lines(lower_bound_garch, col = "red", ylim = ylim, lwd = 2)
 ```
 </center>
 
+Conclui-se com o teste de acurácia, onde o média a série de erros (ME) se apresenta baixa, assim como a média das raizes do erros quadráticos (RMSE) e do valor absoluto do erro (MAE) também apresentam valores baixos. A média da série de erros percentual (MPE) e de erro absoluto percentual (MAPE) tem valores próximos ao 100%, indicando que o modelo tem pouco poder preditivo. Este resultado condiz com os fatos estilizados do mercado onde qualquer padrão tende a se dissipar pela ação de arbitragem dos agentes.
+
+```{r echo=FALSE}
+
+print(accuracy_test_set)
+
+```
+
+#### Códigos
+
+```{r eval=FALSE, echo=TRUE}
+
+#packages
+library(readxl)
+library(xts)
+library(zoo)
+library(PerformanceAnalytics)
+
+#loading data into a dataframe
+closing_prices <- readxl::read_xlsx('data/acoesBR.xlsx', na = "-", )
+
+#creating the index
+date_string <- as.Date(closing_prices$Data)
+
+#creating the time series
+petr4_xts <- xts::xts(closing_prices[, 393], order.by = date_string)
+colnames(petr4_xts) <- "PETR4"
+
+#excluding NAs
+petr4_xts <- na.omit(petr4_xts)
+
+#sub-setting to 1996 up to september/2019
+petr4_xts <- petr4_xts['1996/2019-09']
+
+#calculating log returns
+petr4_returns <- PerformanceAnalytics::Return.calculate(petr4_xts, method = "log")
+petr4_returns <- na.omit(petr4_returns)
+
+saveRDS(petr4_xts, file = "data/petr4.rds")
+saveRDS(petr4_returns, file = "data/p4_returns.rds")
+
+###########################################################
+
+#exploratory analysis
+
+library(xts)
+library(fUnitRoots)
+library(stats)
+library(tseries)
+
+#reading data
+petr4_xts <- readRDS('data/petr4.rds')
+petr4_returns <- readRDS('data/p4_returns.rds')
+
+#plotting the timeseries of prices and returns
+plot.xts(petr4_xts$PETR4, main = "Preços PETR4")
+plot.xts(petr4_returns, main = "Retornos PETR4")
+
+#testing stationarity, H0 points to random walk
+unit_root <- tseries::adf.test(petr4_returns)
+
+#auto-correlation and partial ac functions
+acf_petr4_ret <- stats::acf(petr4_returns, na.action = na.pass, plot = FALSE, lag.max = 10)
+pacf_petr4_ret <- stats::pacf(petr4_returns, na.action = na.pass, plot = FALSE, lag.max = 10)
+
+par(mfrow = c(2,1))
+plot(acf_petr4_ret, main = "", ylab = "", xlab = "Defasagem")
+title("Função de Autocorrelação (FAC)", adj = 0.5, line = 1)
+plot(pacf_petr4_ret, main = "", ylab = "", xlab = "Defasagem")
+title("Função de Autocorrelação Parcial (FACP)", adj = 0.5, line = 1)
+par(mfrow = c(1,1))
+
+
+############################################################
+
+#ARIMA modelling
+
+library(stats)
+
+
+#loading data
+petr4_returns <- readRDS('data/p4_returns.rds')
+
+#possibilities equal to or smaller than the last lag of ACF/PACF
+feasible_set <- expand.grid(ar = 0:1, diff = 0, ma = 0:1)
+
+#defining a list for the results
+model <- list()
+
+#estimating parameters through maximum likelihoood
+for (i in 1:nrow(feasible_set)) {
+  model[[i]] <- stats::arima(petr4_returns, order = unlist(feasible_set[i, 1:3]), method = "ML")
+}
+
+#greater value through log of ML
+log_likelihood <- list()
+for (i in 1:length(model)) {
+  log_likelihood[[i]] <- model[[i]]$loglik
+}
+
+#AIC
+aicarma <- list()
+for (i in 1:length(model)) {
+  aicarma[[i]] <- stats::AIC(model[[i]])
+}
+
+#BIC
+bicarma <- list()
+for (i in 1:length(model)) {
+  bicarma[[i]] <- stats::BIC(model[[i]])
+}
+
+#number of parameters
+qt_parameters <- list()
+for (i in 1:length(model)) {
+  qt_parameters[[i]] <- length(model[[i]]$coef) + 1 # + error's variance
+}
+
+#table of results
+spec <- paste0("ARIMA",feasible_set$ar, feasible_set$diff, feasible_set$ma)
+size <- rep(length(petr4_returns), length(model))
+results <- data.frame(spec, log_likelihood = unlist(log_likelihood),
+                             qt_parameters = unlist(qt_parameters),
+                             size, AIC = unlist(aicarma), 
+                             BIC = unlist(bicarma), stringsAsFactors = FALSE)
+print(results)
+
+#chosen arima model
+cond_average <- arima(petr4_returns, order = c(0,0,1), method = "ML")
+
+
+###################################################################
+
+#residuals analysis
+
+library(stats)
+library(tseries)
+library(lmtest)
+
+#autocorrelation function for the residuals
+acf_residuals <- stats::acf(cond_average$residuals, na.action = na.pass, plot = FALSE, lag.max = 20)
+plot(acf_residuals, main = "", ylab = "", xlab = "Defasagem")
+title("FAC dos resíduos do ARMA(0,1)", adj = 0.5, line = 1)
+
+#Ljung-Box
+box_test_arma <- stats::Box.test(cond_average$residuals, lag = 63, type = "Ljung-Box") #check lags
+print(box_test_arma)
+
+#autocorrelation function, and partial acf, for the squared residuals
+acf_residuals_square <- acf(cond_average$residuals^2,
+                            na.action = na.pass, plot = FALSE, lag.max = 30)
+plot(acf_residuals_square, main = "", ylab = "", xlab = "Defasagem")
+title("FAC do quadrado dos resíduos do ARMA(0,1)", adj = 0.5, line = 1)
+pacf_residuals_square <- stats::pacf(cond_average$residuals^2,
+                                     plot = FALSE, na.action = na.pass, max.lag = 30)
+plot(pacf_residuals_square, main = "", ylab = "", xlab = "Defasagem")
+title("FACP do quadrado dos resíduos do ARMA(0,1)", adj = 0.5, line = 1)
+
+#tests for the distribution of the resilduals, H0: follows a normal dist.
+#shapiro_test <- stats::shapiro.test(na.remove(cond_average$residuals))
+#jarque_bera <- tseries::jarque.bera.test(na.remove(cond_average$residuals))
+#print(jarque_bera)
+
+
+######################################################################
+
+#Garch modelling
+
+library(fGarch)
+library(xts)
+library(stats)
+library(rugarch)
+
+#all possible m, n for garch modelling
+pars_arma_garch <- expand.grid(m = 1:5, n = 0:5)
+
+#list for results
+arma_garch_model <- list()
+
+#arma specification defined on previous codes
+arma_set <- "~arma(0,1)"
+
+# probability distribution for the residuals (norm, std, snorm, sstd)
+arma_residuals_dist <- "sstd"
+
+#skew and assimetry definitions
+include.skew = FALSE
+include.shape = TRUE
+
+#parameters estimation through maximum likelihood
+for (i in 1:nrow(pars_arma_garch)) {
+  arma_garch_model[[i]] <- fGarch::garchFit(as.formula(paste0(arma_set,"+","garch(",pars_arma_garch[i,1],",",pars_arma_garch[i,2], ")")),
+                                             data = petr4_returns, trace = FALSE, cond.dist = arma_residuals_dist,
+                                             include.skew = include.skew, include.shape = include.shape) 
+}
+
+# function maximum value
+log_likelihood_arma_garch <- list()
+for (i in 1:length(arma_garch_model)) {
+  log_likelihood_arma_garch[[i]] <- arma_garch_model[[i]]@fit$llh
+}
+
+# AIC
+aicarma_garch <- list()
+for (i in 1:length(arma_garch_model)) {
+  aicarma_garch[[i]] <- arma_garch_model[[i]]@fit$ics[1]
+}
+
+# BIC
+bicarma_garch <- list()
+for (i in 1:length(arma_garch_model)) {
+  bicarma_garch[[i]] <- arma_garch_model[[i]]@fit$ics[2]
+}
+
+# number of estimated parameters
+arma_garch_param_number <- list()
+for (i in 1:length(arma_garch_model)) {
+  arma_garch_param_number[[i]] <- length(arma_garch_model[[i]]@fit$coef)
+}
+
+# table of results
+spec <- paste0(arma_set,"-","garch",pars_arma_garch$m,pars_arma_garch$n)
+sample_size <- rep(length(petr4_returns), length(arma_garch_model))
+results_arma_garch <- data.frame(spec, ln_likelihood = unlist(log_likelihood_arma_garch),
+                                 param_number = unlist(arma_garch_param_number),
+                                 sample_size, aic = unlist(aicarma_garch), bic = unlist(bicarma_garch),
+                                 stringsAsFactors = FALSE, row.names = NULL)
+print(results_arma_garch)
+
+#using rugarch modelling package for it provides greater possibilities of analysis
+ugarch_version_spec <- rugarch::ugarchspec(variance.model = list(garchOrder = c(1,1)), 
+                                  mean.model = list(armaOrder = c(0,1)), distribution.model = "sstd")
+chosen_arma_garch <- rugarch::ugarchfit(spec = ugarch_version_spec, data = petr4_returns)
+print(chosen_arma_garch)
+
+
+######################################################################
+
+# ARMA-GARCH residual analysis
+
+library(fGarch)
+library(stats)
+
+# squared residuals acf
+acf_residuals_square_arma_garch <- acf(fGarch::residuals(chosen_arma_garch, standardize = TRUE)^2, 
+                                       na.action = na.pass, plot = FALSE, lag.max = 20)
+plot(acf_residuals_square_arma_garch, main = "", ylab = "", xlab = "Defasagem")
+title("FAC do quadrado dos resíduos do ARMA(0,1)-GARCH(1,1)", adj = 0.5, line = 1)
+
+#Ljung-Box
+box_test_garch <- stats::Box.test(fGarch::residuals(chosen_arma_garch, standardize = TRUE),
+                            lag = 63, type = "Ljung-Box") #check lags
+print(box_test_garch)
+
+
+########################################################################
+
+#Results and accuracy
+
+library(stats)
+library(fGarch)
+library(rugarch)
+library(forecast)
+library(quantmod)
+library(PerformanceAnalytics)
+library(xts)
+
+#plotting selected arma-garch model
+fGarch::plot(chosen_arma_garch, which = 'all')
+fGarch::plot(chosen_arma_garch, which = 1)
+
+#out-of-sample data from quantmod
+out_of_sample_prices <- quantmod::getSymbols(Symbols = "PETR4.SA", src = "yahoo", from = '2019-10-01')
+out_of_sample_return <- na.omit(PerformanceAnalytics::Return.calculate(PETR4.SA$PETR4.SA.Close, method = "log"))
+
+#plotting out-of-sample return set
+plot.xts(out_of_sample_return, main = "Dados fora da amostra - PETR4")
+
+#forecasting 3 months out of sample
+arima_garch_forecast <- rugarch::ugarchforecast(chosen_arma_garch, n.ahead = 63)
+print(arima_garch_forecast)
+fGarch::plot(arima_garch_forecast, which = 1)
+fGarch::plot(arima_garch_forecast, which = 3)
+
+#plotting forecast against out-of-sample data
+mean_arma_garch <- arima_garch_forecast@forecast$seriesFor
+upper_bound_garch <- arima_garch_forecast@forecast$seriesFor + arima_garch_forecast@forecast$sigmaFor
+lower_bound_garch <- arima_garch_forecast@forecast$seriesFor - arima_garch_forecast@forecast$sigmaFor
+
+ylim <- c(min(out_of_sample_return), max(out_of_sample_return))
+plot.ts(out_of_sample_return , col = "blue", ylim = ylim, main = '63 períodos fora da amostra')
+lines(mean_arma_garch,col = "green", ylim = ylim, lwd  = 2)
+lines(upper_bound_garch, col = "red", ylim = ylim, lwd = 2)
+lines(lower_bound_garch, col = "red", ylim = ylim, lwd = 2)
+
+#accuracy
+accuracy_test_set <- forecast::accuracy(as.ts(arima_garch_forecast@forecast$seriesFor), out_of_sample_return)
+
+
+```
+
 \break 
