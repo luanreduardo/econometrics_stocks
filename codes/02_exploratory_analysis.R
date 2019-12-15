@@ -3,6 +3,7 @@
 library(xts)
 library(fUnitRoots)
 library(stats)
+library(tseries)
 
 #reading data
 petr4_xts <- readRDS('data/petr4.rds')
@@ -13,12 +14,7 @@ plot.xts(petr4_xts$PETR4, main = "Preços PETR4")
 plot.xts(petr4_returns, main = "Retornos PETR4")
 
 #testing stationarity, H0 points to random walk
-#no constant, no trend
-unit_root_nc <- fUnitRoots::adfTest(petr4_returns, lags = 2, type = c("nc")) 
-#constant, no trend
-unit_root_c <- fUnitRoots::adfTest(petr4_returns, lags = 2, type = c("c"))
-#constant, trend
-unit_root_ct <- fUnitRoots::adfTest(petr4_returns, lags = 2, type = c("ct"))
+unit_root <- tseries::adf.test(petr4_returns)
 
 #auto-correlation and partial ac functions
 acf_petr4_ret <- stats::acf(petr4_returns, na.action = na.pass, plot = FALSE, lag.max = 10)

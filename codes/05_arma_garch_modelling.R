@@ -5,7 +5,7 @@ library(xts)
 library(stats)
 
 #all possible m, n for garch modelling
-pars_arma_garch <- expand.grid(m = 1:3, n = 0:3)
+pars_arma_garch <- expand.grid(m = 1:5, n = 0:5)
 
 #list for results
 arma_garch_model <- list()
@@ -60,5 +60,5 @@ results_arma_garch <- data.frame(spec, ln_likelihood = unlist(log_likelihood_arm
                                  stringsAsFactors = FALSE, row.names = NULL)
 print(results_arma_garch)
 
-chosen_arma_garch <- arma_garch_model[[4]]
+chosen_arma_garch <- arma_garch_model[[6]]
 print(chosen_arma_garch)
