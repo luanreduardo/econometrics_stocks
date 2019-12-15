@@ -37,3 +37,4 @@ lines(upper_bound_garch, col = "red", ylim = ylim, lwd = 2)
 lines(lower_bound_garch, col = "red", ylim = ylim, lwd = 2)
 
 #accuracy
+accuracy_test_set <- forecast::accuracy(as.ts(arima_garch_forecast@forecast$seriesFor), out_of_sample_return)
