@@ -20,7 +20,4 @@ source("codes/05_arma_garch_modelling.R")
 source("codes/06_arma_garch_residual_analysis.R")
 
 #results and accuracy
-source("codes/07_results_accuracy.R")
-
-#forecasting
-source("codes/08_forecast.R")
+source("codes/07_results_forecasting.R")

@@ -3,6 +3,7 @@
 library(fGarch)
 library(xts)
 library(stats)
+library(rugarch)
 
 #all possible m, n for garch modelling
 pars_arma_garch <- expand.grid(m = 1:5, n = 0:5)
@@ -60,5 +61,8 @@ results_arma_garch <- data.frame(spec, ln_likelihood = unlist(log_likelihood_arm
                                  stringsAsFactors = FALSE, row.names = NULL)
 print(results_arma_garch)
 
-chosen_arma_garch <- arma_garch_model[[6]]
+#using rugarch modelling package for it provides greater possibilities of analysis
+ugarch_version_spec <- rugarch::ugarchspec(variance.model = list(garchOrder = c(1,1)), 
+                                  mean.model = list(armaOrder = c(0,1)), distribution.model = "sstd")
+chosen_arma_garch <- rugarch::ugarchfit(spec = ugarch_version_spec, data = petr4_returns)
 print(chosen_arma_garch)
