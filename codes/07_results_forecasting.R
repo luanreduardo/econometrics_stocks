@@ -38,3 +38,11 @@ lines(lower_bound_garch, col = "red", ylim = ylim, lwd = 2)
 
 #accuracy
 accuracy_test_set <- forecast::accuracy(as.ts(arima_garch_forecast@forecast$seriesFor), out_of_sample_return)
+theils_u <- DescTools::TheilU(out_of_sample_return, 
+                              arima_garch_forecast@forecast$seriesFor[0:length(out_of_sample_return),], type = 2)
+
+
+#cross-validation
+forecast_function <- function(x, h){forecast(Arima(x, order = c(0,0,1)), h = h)}
+cross_val <- tsCV(petr4_returns, forecast_function, h = 1)
+RMSE_cross_val <- sqrt(mean(cross_val^2, na.rm = T))

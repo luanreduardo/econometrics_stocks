@@ -84,7 +84,7 @@ print(cond_average)
 
 ### Análise dos Resíduos para o MA(1)
 
-Aqui é feita uma análise dos resíduos para verificar se existem indicativos de padrões não esperados, uma vez que esses devem se comportar como um ruído branco. Para isso, inicia-se com um teste de Ljung-Box para testar se há indicativo de autocorrelação serial dos resíduos, onde o objetivo é aceitar a hipótese de que os resíduos são i.i.d, H0. Tem-se um p-valor < 0.05, evidência contra H0.
+Aqui é feita uma análise dos resíduos para verificar se existem indicativos de padrões não esperados, uma vez que esses devem se comportar como um ruído branco. Para isso, inicia-se com um teste de Ljung-Box para testar se há indicativo de autocorrelação serial dos resíduos, no caso da hipótese alternativa contra a ausência de autocorrelação indicada por H0 **PONTOS 01 e 02**. Tem-se um p-valor < 0.05, evidência contra H0. Utiliza-se o valor df = 20 por ser o mais típico, conforme Shumway-Stoffer **PONTO 03**.
 
 ```{r echo=FALSE}
 
@@ -92,13 +92,15 @@ print(box_test_arma)
 
 ```
 
-Utiliza-se a FAC dos resíduos, indica a ausência de uma autocorrelação.
+Utiliza-se a FAC e FACP **PONTO 04** dos resíduos, que indicam a ausência de uma autocorrelação.
 
 <center>
 ```{r echo=FALSE}
 
 plot(acf_residuals, main = "", ylab = "", xlab = "Defasagem")
 title("FAC dos resíduos do ARMA(0,1)", adj = 0.5, line = 1)
+plot(pacf_residuals, main = "", ylab = "", xlab = "Defasagem")
+title("FACP dos resíduos do ARMA(0,1)", adj = 0.5, line = 1)
 
 ```
 </center>
@@ -131,7 +133,7 @@ print(results_arma_garch)
 
 ```
 
-Os resultados de obtidos indicam menores AIC e BIC no modelo ARMA(0,1)-GARCH(1,1), definindo o modelo utilizado no restante desse trabalho.
+Os resultados de obtidos indicam menores AIC e BIC no modelo ARMA(0,1)-GARCH(1,1), definindo o modelo utilizado no restante desse trabalho. **PONTO 06** Como foi utilizado a t de Student assimétrica sem o número de graus de liberdade fixo no código, a função computa o shape para definir esse número, neste caso em aprox. 7,45.
 
 ```{r echo=FALSE}
 
@@ -213,6 +215,37 @@ Conclui-se com o teste de acurácia, onde o média a série de erros (ME) se apr
 ```{r echo=FALSE}
 
 print(accuracy_test_set)
+
+```
+
+Também é incluído o teste U de Theil próximo a 1, que indica uma quase ausência de sinal. **PONTO 07**
+
+```{r echo = FALSE}
+
+print("U de Theil")
+print(theils_u)
+
+```
+
+#### Validação Cruzada **PONTO 08**
+
+Por fim, utiliza-se a função do Hyndman tsCV() para fazer a validação cruzada da série temporal em relação a média condiconal (MA(01)), onde o programa separa uma amostra de treinamento para fazer uma previsão em $t$, calcula a diferença do predito com o observado e move aquele valor para a amostra de treinamento para a previsão em $t+1$. Gera-se, portanto, um vetor (para o caso h = 1) com os erros da onde calcula-se o RMSE para comparação.
+
+```{r echo = F}
+
+print("RMSE da Validação Cruzada")
+print(RMSE_cross_val)
+
+```
+
+
+#### Anexo **PONTO 05**
+
+Este anexo traz o comparativo entre os BICs dos modelos ARMA-GARCH estimados utilizando-se diferentes distribuições dos erros. Opta-se por não alterar a escolha no qual o trabalho foi construído, da t de Student assimétrica, para evitar a re-análise de todos os procedimentos. Assim, este anexo objetiva apenas demonstrar o procedimento de escolha via menor BIC, neste caso a t de Student convencional.
+
+``` {r echo = FALSE}
+
+print(bic_values)
 
 ```
 
@@ -505,7 +538,14 @@ lines(lower_bound_garch, col = "red", ylim = ylim, lwd = 2)
 
 #accuracy
 accuracy_test_set <- forecast::accuracy(as.ts(arima_garch_forecast@forecast$seriesFor), out_of_sample_return)
+theils_u <- DescTools::TheilU(out_of_sample_return, 
+                              arima_garch_forecast@forecast$seriesFor[0:length(out_of_sample_return),], type = 2)
 
+
+#cross-validation
+forecast_function <- function(x, h){forecast(Arima(x, order = c(0,0,1)), h = h)}
+cross_val <- tsCV(petr4_returns, forecast_function, h = 1)
+RMSE_cross_val <- sqrt(mean(cross_val^2, na.rm = T))
 
 ```
 

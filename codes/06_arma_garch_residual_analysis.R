@@ -11,5 +11,5 @@ title("FAC do quadrado dos resíduos do ARMA(0,1)-GARCH(1,1)", adj = 0.5, line =
 
 #Ljung-Box
 box_test_garch <- stats::Box.test(fGarch::residuals(chosen_arma_garch, standardize = TRUE),
-                            lag = 63, type = "Ljung-Box") #check lags
+                            lag = 20, type = "Ljung-Box") #check lags
 print(box_test_garch)
